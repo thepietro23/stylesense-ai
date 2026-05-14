@@ -1,179 +1,98 @@
 # StyleSense AI
 
-**See the design, sense the demand.**
+> See the design, sense the demand.
 
-A demand prediction engine that estimates the expected sales quantity of a new product design from its image and price.
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.3-EE4C2C?logo=pytorch&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-1.5-F7931E?logo=scikitlearn&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.37-FF4B4B?logo=streamlit&logoColor=white)
+![License](https://img.shields.io/badge/Status-POC-blue)
 
----
-
-## Author
-
-| | |
-|---|---|
-| Name | Praveen Rawal |
-| Email | rawalpraveen886@gmail.com |
+**Author** — Praveen Rawal · rawalpraveen886@gmail.com
 
 ---
 
-## Overview
+## Problem
 
-Given a product design image and an expected unit price, StyleSense AI predicts:
+A retailer wants to know **how many units a new product design will sell** before launching it. They only have:
 
-1. **Quantity** — expected number of units the design will sell (regression)
-2. **Range** — an uncertainty interval around the point estimate
-3. **Demand tier** — `Low` / `Medium` / `High` seller classification with per-class probability
+- The design image
+- Sales history of past products
 
-The system is trained on 180 product images and 704 historical sales transactions, using a ResNet50 visual encoder followed by PCA, a Random Forest regressor for quantity, and a Random Forest classifier (with class balancing) for the demand tier.
-
-The full design rationale is documented in [LOGIC_AND_APPROACH.md](LOGIC_AND_APPROACH.md).
+The challenge: predict expected demand for an unseen design, using just its image.
 
 ---
 
-## Repository contents
+## Approach
 
-```
-.
-├── README.md                       This file
-├── LOGIC_AND_APPROACH.md           Detailed design and methodology
-├── requirements.txt                Python dependencies
-├── .gitignore
-├── .streamlit/config.toml          Streamlit upload-size config
-├── app/
-│   └── streamlit_app.py            Web interface
-├── src/
-│   ├── feature_extractor.py        ResNet50 feature extractor
-│   ├── model.py                    Regressor, classifier, evaluation helpers
-│   └── inference.py                End-to-end prediction pipeline
-├── notebooks/
-│   ├── 01_eda.ipynb                Exploratory data analysis
-│   ├── 02_feature_engineering.ipynb  Image embeddings + training set assembly
-│   └── 03_model_training.ipynb     Model training and evaluation
-├── data/
-│   ├── raw/sales.xlsx              Raw sales transactions
-│   └── processed/                  Cleaned CSV artefacts
-├── models/                         Persisted trained artefacts
-└── outputs/                        Diagnostic plots
-```
-
----
-
-## Setup
-
-### Prerequisites
-
-- Windows / macOS / Linux
-- Python 3.11 (other 3.x versions may work but are not tested)
-- ~2 GB free disk space (mostly for PyTorch and ResNet50 weights)
-
-### Installation
-
-```bash
-git clone https://github.com/thepietro23/stylesense-ai.git
-cd stylesense-ai
-
-# Create virtual environment (Python 3.11)
-py -3.11 -m venv venv
-
-# Activate it
-# Windows (PowerShell):
-.\venv\Scripts\Activate.ps1
-# macOS / Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### Image dataset (required for training, optional for inference)
-
-The 180 product images are excluded from this repository to keep the clone size small. Download them from the original Google Drive link:
-
-https://drive.google.com/drive/folders/1PxLPhLtTpt1YR1hisvHeRZ1U-3sKV6EM
-
-Extract such that the structure becomes:
-
-```
-data/raw/images/
-├── 1/    (55 images)
-├── 2/    (52 images)
-├── 3/    (36 images)
-└── 4/    (37 images)
-```
-
-The trained model artefacts in `models/` are included in the repository, so the Streamlit application can run inference on any uploaded image without redownloading the dataset.
-
----
-
-## Running the application
-
-```bash
-streamlit run app/streamlit_app.py
-```
-
-The application opens at http://localhost:8501. Upload a product image, enter an expected unit price (₹400–₹1700), and click **Predict**.
-
----
-
-## Reproducing the training pipeline
-
-If you wish to retrain from scratch (requires the image dataset extracted as above):
-
-```bash
-jupyter notebook
-```
-
-Run the notebooks in order:
-
-1. **01_eda.ipynb** — sales data structure, distributions, image inventory.
-2. **02_feature_engineering.ipynb** — ResNet50 embeddings, image–product mapping, feature matrix.
-3. **03_model_training.ipynb** — train regressor and classifier, evaluate, persist artefacts.
-
-The training notebook overwrites the contents of `models/`.
+1. **Image → numbers** — pass each image through pretrained ResNet50, get a 2048-dim feature vector.
+2. **Compress** — PCA reduces 2048 dims to 16 (more signal per feature given only 180 samples).
+3. **Predict quantity** — Random Forest regressor maps `[16 PCA features + price]` → expected units sold.
+4. **Predict tier** — Random Forest classifier outputs Low / Medium / High seller, with per-class probabilities.
+5. **Smooth at inference** — predictions are averaged over a small price window to keep the response stable.
 
 ---
 
 ## Results
 
-### Regression (quantity prediction)
-
 | Metric | Value |
 |---|---|
-| Test MAE | 11.26 units |
-| Test RMSE | 15.04 units |
-| Test R² | 0.337 |
-| CV MAE (5-fold) | 12.83 ± 2.95 |
-| Mean-only baseline MAE | 13.78 |
-
-The regressor reduces prediction error by approximately 18 percent relative to a mean-only baseline.
-
-### Classification (demand tier)
-
-| Metric | Value |
-|---|---|
-| Accuracy | 47.2 percent |
-| F1 (macro) | 0.431 |
-| F1 (Medium) | 0.571 |
-| F1 (High) | 0.500 |
-| F1 (Low) | 0.222 |
-
-Random guessing on three balanced classes would achieve approximately 33 percent accuracy and 0.33 F1.
-
-### Latency
-
-End-to-end prediction averages ~0.5 seconds per image on CPU, with a one-time model load of ~3–5 seconds on application start.
+| Regression MAE | **11.26 units** (baseline 13.78) |
+| Regression R² | **0.337** |
+| Classifier Accuracy | **47.2%** (random 33%) |
+| Classifier F1 (macro) | **0.431** |
+| Latency | ~0.5 s per image (CPU) |
 
 ---
 
-## Five required answers
+## Setup
 
-The complete responses to the five mandatory questions (approach, model logic, observed patterns, failure modes, future improvements) are in [LOGIC_AND_APPROACH.md](LOGIC_AND_APPROACH.md).
+```bash
+git clone https://github.com/thepietro23/stylesense-ai.git
+cd stylesense-ai
+
+py -3.11 -m venv venv
+.\venv\Scripts\Activate.ps1      # Windows
+# source venv/bin/activate       # macOS / Linux
+
+pip install -r requirements.txt
+```
+
+## Run the app
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+Opens at http://localhost:8501. Upload an image, enter price, get prediction.
+
+---
+
+## Reproduce training
+
+The 180 product images are not committed (too large). Download them and extract into `data/raw/images/{1,2,3,4}/`:
+
+📦 https://drive.google.com/drive/folders/1PxLPhLtTpt1YR1hisvHeRZ1U-3sKV6EM
+
+Then run notebooks in order: `01_eda.ipynb` → `02_feature_engineering.ipynb` → `03_model_training.ipynb`.
+
+---
+
+## Project structure
+
+```
+app/streamlit_app.py     UI
+src/                     feature extractor, model, inference
+notebooks/               EDA, feature engineering, training
+models/                  trained artefacts (loaded by app)
+data/                    sales.xlsx + processed CSVs
+outputs/                 diagnostic plots
+```
 
 ---
 
 ## Limitations
 
-- Only 180 product images are available for training, and the image-to-product mapping is reconstructed through stratified random assignment because filenames do not encode product codes.
-- The price feature has a weak correlation with quantity in the data (~0.14), so the regressor's response to price is small and can be locally non-monotonic; inference applies a smoothing window to keep the response stable.
-- Predictions on designs that are visually very different from the training distribution should be treated as low-confidence.
-- The system is trained on CPU with no GPU acceleration. Inference is fast enough for interactive use, but very large batches would benefit from GPU.
+- Only 180 images in the training set; predictions on radically new styles are low-confidence.
+- Price has weak correlation with quantity (~0.14) in the data — its influence is small and is smoothed at inference.
+- Image-to-product mapping is reconstructed by stratified random assignment because filenames do not encode product codes.
