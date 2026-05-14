@@ -1,38 +1,38 @@
 {
   "regressor": {
-    "model": "RandomForestRegressor(n_estimators=300, max_depth=3, min_samples_leaf=5)",
-    "cv_mae_mean": 12.829,
-    "cv_mae_std": 2.952,
-    "test_mae": 11.26,
-    "test_rmse": 15.039,
-    "test_r2": 0.337,
+    "model": "RandomForestRegressor(n_estimators=400, max_depth=3, min_samples_leaf=5)",
+    "cv_mae_mean": 8.989,
+    "cv_mae_std": 0.141,
+    "test_mae": 10.596,
+    "test_rmse": 14.99,
+    "test_r2": 0.341,
     "baseline_mae": 13.782,
     "beats_baseline": true
   },
   "classifier": {
-    "model": "RandomForestClassifier(n_estimators=300, max_depth=10, class_weight=balanced)",
-    "accuracy": 0.472,
-    "f1_macro": 0.431,
+    "model": "RandomForestClassifier(n_estimators=400, max_depth=10, class_weight=balanced)",
+    "accuracy": 0.528,
+    "f1_macro": 0.488,
     "f1_per_class": {
-      "Low": 0.222,
-      "Medium": 0.571,
-      "High": 0.5
+      "Low": 0.522,
+      "Medium": 0.579,
+      "High": 0.364
     },
     "confusion_matrix": [
       [
-        2,
-        9,
+        6,
+        5,
         0
       ],
       [
-        4,
-        12,
+        5,
+        11,
         1
       ],
       [
         1,
-        4,
-        3
+        5,
+        2
       ]
     ],
     "tier_labels": [
@@ -46,16 +46,24 @@
     ]
   },
   "training": {
-    "n_train": 144,
+    "n_train_original": 144,
+    "n_train_augmented": 864,
     "n_test": 36,
-    "n_features": 17,
+    "augmentation_multiplier": 6,
+    "augmentations": [
+      "flip",
+      "jitter",
+      "rotate",
+      "rrc",
+      "flip_jitter"
+    ],
     "pca_components": 16,
-    "pca_variance_explained": 0.5348,
+    "pca_variance_explained": 0.5566,
     "random_seed": 42
   },
   "rate_sanity": {
-    "sweep_min_qty": 15.19,
-    "sweep_max_qty": 48.03,
-    "sweep_spread": 32.85
+    "sweep_min_qty": 13.62,
+    "sweep_max_qty": 86.17,
+    "sweep_spread": 72.55
   }
 }

@@ -27,10 +27,11 @@ The challenge: predict expected demand for an unseen design, using just its imag
 ## Approach
 
 1. **Image → numbers** — pass each image through pretrained ResNet50, get a 2048-dim feature vector.
-2. **Compress** — PCA reduces 2048 dims to 16 (more signal per feature given only 180 samples).
-3. **Predict quantity** — Random Forest regressor maps `[16 PCA features + price]` → expected units sold.
-4. **Predict tier** — Random Forest classifier outputs Low / Medium / High seller, with per-class probabilities.
-5. **Smooth at inference** — predictions are averaged over a small price window to keep the response stable.
+2. **Augment training only** — each training image is re-embedded under five transforms (flip, jitter, rotate, random-resized crop, flip+jitter). This gives a 6× training set without touching the test split.
+3. **Compress** — PCA fitted on training originals reduces 2048 dims to 16 (improves the sample-to-feature ratio given only 180 base images).
+4. **Predict quantity** — Random Forest regressor maps `[16 PCA features + price]` → expected units sold.
+5. **Predict tier** — Random Forest classifier (`class_weight=balanced`) outputs Low / Medium / High seller, with per-class probabilities.
+6. **Smooth at inference** — predictions are averaged over a small price window to keep the response stable.
 
 ---
 
@@ -38,10 +39,12 @@ The challenge: predict expected demand for an unseen design, using just its imag
 
 | Metric | Value |
 |---|---|
-| Regression MAE | **11.26 units** (baseline 13.78) |
-| Regression R² | **0.337** |
-| Classifier Accuracy | **47.2%** (random 33%) |
-| Classifier F1 (macro) | **0.431** |
+| Regression MAE | **10.60 units** (baseline 13.78) |
+| Regression RMSE | **14.99** |
+| Regression R² | **0.341** |
+| Classifier Accuracy | **52.8%** (random 33%) |
+| Classifier F1 (macro) | **0.488** |
+| F1 (Low / Medium / High) | 0.522 / 0.579 / 0.364 |
 | Latency | ~0.5 s per image (CPU) |
 
 ---
@@ -57,21 +60,21 @@ I framed it as a supervised learning task on a small dataset (180 images, 704 tr
 3. **Modelling** — try Ridge, Random Forest, and XGBoost; pick the best via cross-validation and a stratified held-out test set.
 4. **UI** — wrap the trained pipeline in a Streamlit app so a user can upload an image and get a prediction in under a second.
 
-Execution was iterative. After the first round I audited the model and found two real problems: the category one-hot feature carried no signal (the model ignored it correctly, but the UI was exposing a useless control), and the model's response to price was non-monotonic in places. Both were resolved by removing the category feature, applying PCA, switching to a shallower Random Forest, and smoothing the price response at inference time.
+Execution was iterative. After the first round I audited the model and found two real problems: the category one-hot feature carried no signal, and the model's response to price was non-monotonic in places. Both were resolved by removing the category feature, applying PCA, switching to a shallower Random Forest, and smoothing the price response at inference time. A subsequent round added training-image augmentation (flip, colour jitter, rotation, random-resized crop, flip+jitter) which lifted regression MAE by roughly 6 percent and classifier F1 by about 13 percent compared to no augmentation.
 
 ### 2. How does your prediction system work?
 
 ```
 Image (224×224 RGB)
   → ResNet50 (frozen, ImageNet pretrained)        # 2048-dim embedding
-  → PCA (fit on training embeddings)              # 16 principal components
+  → PCA (fit on training originals only)          # 16 principal components
   → concat with price                             # 17 features
   → StandardScaler
   → Random Forest regressor   → predicted quantity (with ±RMSE range)
   → Random Forest classifier  → demand tier (Low / Medium / High + probabilities)
 ```
 
-At inference, predictions are averaged over a small price window (±150) to dampen tree-induced non-monotonicities. The regressor uses shallow trees (`max_depth=3`, `min_samples_leaf=5`) to keep generalisation stable; the classifier uses `class_weight=balanced` because the High tier is underrepresented.
+Training applies augmentation (flip, jitter, rotate, random-resized crop, flip+jitter) to the training images before re-embedding them, producing a 6× training set; the test split is untouched. At inference, predictions are averaged over a small price window (±150) to dampen tree-induced non-monotonicities. The regressor uses shallow trees (`max_depth=3`, `min_samples_leaf=5`) to keep generalisation stable; the classifier uses `class_weight=balanced` because the High tier is underrepresented.
 
 ### 3. What patterns did you find in the data?
 

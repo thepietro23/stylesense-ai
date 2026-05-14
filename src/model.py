@@ -90,7 +90,7 @@ def cross_validate_mae(model, X, y, n_splits=5, random_state=42):
 
 def build_regressor(n_features: int, random_state: int = 42) -> RandomForestRegressor:
     return RandomForestRegressor(
-        n_estimators=300,
+        n_estimators=400,
         max_depth=3,
         min_samples_leaf=5,
         n_jobs=-1,
@@ -100,7 +100,7 @@ def build_regressor(n_features: int, random_state: int = 42) -> RandomForestRegr
 
 def build_classifier(random_state: int = 42) -> RandomForestClassifier:
     return RandomForestClassifier(
-        n_estimators=300,
+        n_estimators=400,
         max_depth=10,
         min_samples_leaf=2,
         class_weight="balanced",

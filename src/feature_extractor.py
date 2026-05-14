@@ -29,6 +29,63 @@ def _build_preprocess() -> transforms.Compose:
     ])
 
 
+def build_augmentations() -> dict[str, transforms.Compose]:
+    """Return a dict of named augmentation transforms used during training.
+
+    Each transform maps a PIL image to a tensor ready for the ResNet50 forward
+    pass. These transforms are applied only to training images to enlarge the
+    effective dataset without leaking the test split.
+    """
+    norm = transforms.Normalize(mean=_IMAGENET_MEAN, std=_IMAGENET_STD)
+    return {
+        "flip": transforms.Compose([
+            transforms.Resize(256), transforms.CenterCrop(224),
+            transforms.RandomHorizontalFlip(p=1.0),
+            transforms.ToTensor(), norm,
+        ]),
+        "jitter": transforms.Compose([
+            transforms.Resize(256), transforms.CenterCrop(224),
+            transforms.ColorJitter(brightness=0.3, contrast=0.3,
+                                     saturation=0.3, hue=0.05),
+            transforms.ToTensor(), norm,
+        ]),
+        "rotate": transforms.Compose([
+            transforms.Resize(256), transforms.CenterCrop(224),
+            transforms.RandomRotation(15),
+            transforms.ToTensor(), norm,
+        ]),
+        "rrc": transforms.Compose([
+            transforms.Resize(256),
+            transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+            transforms.ToTensor(), norm,
+        ]),
+        "flip_jitter": transforms.Compose([
+            transforms.Resize(256), transforms.CenterCrop(224),
+            transforms.RandomHorizontalFlip(p=1.0),
+            transforms.ColorJitter(brightness=0.2, contrast=0.2),
+            transforms.ToTensor(), norm,
+        ]),
+    }
+
+
+@torch.inference_mode()
+def extract_with_transform(image_paths, transform, model, device="cpu", batch_size=16):
+    """Embed images using a specific transform (used for augmented training data)."""
+    out = []
+    batch = []
+    for path in image_paths:
+        with Image.open(path) as im:
+            im = im.convert("RGB")
+            t = transform(im)
+        batch.append(t)
+        if len(batch) == batch_size:
+            out.append(model(torch.stack(batch).to(device)).cpu().numpy())
+            batch = []
+    if batch:
+        out.append(model(torch.stack(batch).to(device)).cpu().numpy())
+    return np.vstack(out)
+
+
 def load_resnet50_extractor(device: str | torch.device = "cpu") -> nn.Module:
     """Load a pretrained ResNet50 with the final FC layer replaced by identity.
 
