@@ -1,0 +1,61 @@
+{
+  "regressor": {
+    "model": "RandomForestRegressor(n_estimators=300, max_depth=3, min_samples_leaf=5)",
+    "cv_mae_mean": 12.829,
+    "cv_mae_std": 2.952,
+    "test_mae": 11.26,
+    "test_rmse": 15.039,
+    "test_r2": 0.337,
+    "baseline_mae": 13.782,
+    "beats_baseline": true
+  },
+  "classifier": {
+    "model": "RandomForestClassifier(n_estimators=300, max_depth=10, class_weight=balanced)",
+    "accuracy": 0.472,
+    "f1_macro": 0.431,
+    "f1_per_class": {
+      "Low": 0.222,
+      "Medium": 0.571,
+      "High": 0.5
+    },
+    "confusion_matrix": [
+      [
+        2,
+        9,
+        0
+      ],
+      [
+        4,
+        12,
+        1
+      ],
+      [
+        1,
+        4,
+        3
+      ]
+    ],
+    "tier_labels": [
+      "Low",
+      "Medium",
+      "High"
+    ],
+    "tier_boundaries": [
+      10,
+      25
+    ]
+  },
+  "training": {
+    "n_train": 144,
+    "n_test": 36,
+    "n_features": 17,
+    "pca_components": 16,
+    "pca_variance_explained": 0.5348,
+    "random_seed": 42
+  },
+  "rate_sanity": {
+    "sweep_min_qty": 15.19,
+    "sweep_max_qty": 48.03,
+    "sweep_spread": 32.85
+  }
+}
